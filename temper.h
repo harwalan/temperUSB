@@ -28,7 +28,7 @@
  */
 
 typedef struct Temper Temper;
-
+typedef struct Measurement Measurement;
 
 Temper *TemperCreateFromDeviceNumber(int deviceNum, int timeout, int debug);
 void TemperFree(Temper *t);

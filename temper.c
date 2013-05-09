@@ -2,6 +2,7 @@
 #include <string.h>
 #include <usb.h>
 #include <errno.h>
+#include <time.h>
 
 /*
  * Temper.c by Robert Kavaler (c) 2009 (relavak.com)
@@ -40,6 +41,12 @@ struct Temper {
 	int debug;
 	int timeout;
 };
+
+struct Measurement {
+  float value;
+  char *date;
+};
+  
 
 Temper *
 TemperCreate(struct usb_device *dev, int timeout, int debug)
@@ -229,7 +236,13 @@ main(void)
 {
 	Temper *t;
 	char buf[256];
-	int i, ret;
+	int i, ret, first;
+  Measurement *current;
+  Measurement *max;
+  Measurement *min;
+  time_t current_time;
+  char buff[20];
+  first = 1;
 
 	usb_set_debug(0);
 	usb_init();
@@ -271,8 +284,37 @@ main(void)
 			perror("TemperGetTemperatureInC");
 			exit(1);
 		}
-		printf("temperature %.2fF %.2fC\n", (9.0 / 5.0 * tempc + 32.0),
-		       tempc);
+	  current = calloc(1, sizeof(*current));
+    current->value = 9.0 / 5.0 * tempc + 32.0;
+    current_time = time(NULL);
+    strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&current_time));
+    current->date = buff;
+
+    if (first == 1){
+      first = 0;
+      min = current;
+      max = current;
+    }
+    if (current->value < min->value){
+      min = current;
+    }
+    if (current->value > max->value){
+      max = current;
+    }
+
+    printf("current: %.2fF\n", current->value);
+    printf("min: %.2fF\n", min->value);
+    printf("max: %.2fF\n", max->value);
+    printf("time: %s\n", current->date);
+
+    FILE *file;
+    file = fopen("temper.json","w+");
+    fprintf(file, "{ \"temperature\": \
+      { \"current\": { \"date\": \"%s\", \"degreesF\": %.2f }, \
+       \"max\": { \"date\": \"%s\", \"degreesF\": %.2f }, \
+       \"min\": { \"date\": \"%s\", \"degreesF\": %.2f } \
+      }}", current->date, current->value, max->date, max->value, min->date, min->value);
+    fclose(file);
 		sleep(10);
 	}
 	return 0;
