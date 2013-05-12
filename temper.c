@@ -226,69 +226,31 @@ TemperGetOtherStuff(Temper *t, char *buf, int length)
 	return TemperGetData(t, buf, length);
 }
 
-
-#ifdef UNIT_TEST
-
-#define USB_TIMEOUT 1000	/* milliseconds */
-
-int
-main(void)
+void
+repeatOutput(Temper *t)
 {
-	Temper *t;
-	char buf[256];
-	int i, ret, first;
+  int first;
   Measurement *current;
   Measurement *max;
   Measurement *min;
   time_t current_time;
   char buff[20];
+
+
   first = 1;
-
-	usb_set_debug(0);
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
-
-	t = TemperCreateFromDeviceNumber(0, USB_TIMEOUT, 0);
-	if(!t) {
-		perror("TemperCreate");
-		exit(-1);
-	}
-
-/*
-	TemperSendCommand(t, 10, 11, 12, 13, 0, 0, 2, 0);
-	TemperSendCommand(t, 0x43, 0, 0, 0, 0, 0, 0, 0);
-	TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0);
-	TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0);
-	TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0);
-	TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0);
-	TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0);
-	TemperSendCommand(t, 0, 0, 0, 0, 0, 0, 0, 0);
-*/
-
-	bzero(buf, 256);
-	ret = TemperGetOtherStuff(t, buf, 256);
-	printf("Other Stuff (%d bytes):\n", ret);
-	for(i = 0; i < ret; i++) {
-		printf(" %02x", buf[i] & 0xFF);
-		if(i % 16 == 15) {
-			printf("\n");
-		}
-	}
-	printf("\n");
-
-	for(;;) {
+  for(;;){
 		float tempc;
 
 		if(TemperGetTemperatureInC(t, &tempc) < 0) {
 			perror("TemperGetTemperatureInC");
 			exit(1);
 		}
+
 	  current = calloc(1, sizeof(*current));
     current->value = 9.0 / 5.0 * tempc + 32.0;
     current_time = time(NULL);
     strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&current_time));
-    current->date = buff;
+    current->date = strdup(buff);
 
     if (first == 1){
       first = 0;
@@ -303,9 +265,8 @@ main(void)
     }
 
     printf("current: %.2fF\n", current->value);
-    printf("min: %.2fF\n", min->value);
-    printf("max: %.2fF\n", max->value);
-    printf("time: %s\n", current->date);
+    printf("min: %.2fF @ %s\n", min->value, min->date);
+    printf("max: %.2fF @ %s\n", max->value, max->date);
 
     FILE *file;
     file = fopen("temper.json","w+");
@@ -316,8 +277,75 @@ main(void)
       }}", current->date, current->value, max->date, max->value, min->date, min->value);
     fclose(file);
 		sleep(10);
+  }
+
+}
+
+void
+writeOne(Temper *t)
+{
+		float tempc;
+    Measurement *current;
+    time_t current_time;
+    char buff[20];
+
+		if(TemperGetTemperatureInC(t, &tempc) < 0) {
+			perror("TemperGetTemperatureInC");
+			exit(1);
+		}
+
+	  current = calloc(1, sizeof(*current));
+    current->value = 9.0 / 5.0 * tempc + 32.0;
+    current_time = time(NULL);
+    strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&current_time));
+    current->date = strdup(buff);
+    printf("current: %.2fF\n", current->value);
+
+    FILE *file;
+    file = fopen("current_temp.json","w+");
+    fprintf(file, "{ \"temperature\": { \"current\": { \"date\": \"%s\", \"degreesF\": %.2f } } }", current->date, current->value);
+    fclose(file);
+	
+}
+
+#ifdef UNIT_TEST
+
+#define USB_TIMEOUT 1000	/* milliseconds */
+
+int
+main(int argc,char *argv[])
+{
+	Temper *t;
+	char buf[256];
+	int i, ret;
+  int repeat;
+  if (argc < 1) {
+    fputs("usage: <prog> <filename>\n", stderr);
+    return EXIT_FAILURE;
+  }
+  repeat = argv[1];
+
+  usb_set_debug(0);
+	usb_init();
+	usb_find_busses();
+	usb_find_devices();
+
+	t = TemperCreateFromDeviceNumber(0, USB_TIMEOUT, 0);
+	if(!t) {
+		perror("TemperCreate");
+		exit(-1);
 	}
+  if (repeat > 0) {
+    printf("repeat\n");
+    repeatOutput(t);
+  } else {
+    writeOne(t);
+  }
+
 	return 0;
 }
+
+
+
 
 #endif
