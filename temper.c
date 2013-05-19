@@ -303,7 +303,7 @@ writeOne(Temper *t)
 
     FILE *file;
     file = fopen("current_temp.json","w+");
-    fprintf(file, "{ \"temperature\": { \"current\": { \"date\": \"%s\", \"degreesF\": %.2f } } }", current->date, current->value);
+    fprintf(file, "{ \"date\": \"%s\", \"degreesF\": %.2f }", current->date, current->value);
     fclose(file);
 	
 }
