@@ -295,11 +295,12 @@ writeOne(Temper *t)
 		}
 
 	  current = calloc(1, sizeof(*current));
-    current->value = 9.0 / 5.0 * tempc + 32.0;
+    current->value = 9.00 / 5.00 * tempc + 32.00;
     current_time = time(NULL);
     strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&current_time));
     current->date = strdup(buff);
     printf("current: %.2fF\n", current->value);
+    printf("cels: %.2fF\n", tempc);
 
     FILE *file;
     file = fopen("current_temp.json","w+");
